@@ -55,8 +55,10 @@ int main(int argc, char *argv[])
     int length = inputVideo.get(CAP_PROP_FRAME_COUNT)/outputFps;
     VideoWriter outputVideo(output, VideoWriter::fourcc('M','J','P','G'), fps/outputFps, Size(width/downscaleFactor/dotSize * 10, height/downscaleFactor/dotSize * 10));
 
-    for(int i = 0;i < length;i+=outputFps) {
+    int i = 1;
+    while(1) {
         Mat frame;
+        inputVideo.set(CAP_PROP_POS_FRAMES, i-1);
         inputVideo >> frame;
 
         if(frame.empty())
@@ -67,20 +69,19 @@ int main(int argc, char *argv[])
         imshow("Ascii", frameObj->getAsciiImage());
         imshow("Originial", frame);
 
-        cout << i << "/" << length << endl;
+        //cout << i << "/" << length << endl;
 
         char c = static_cast<char>(waitKey(1));
         if(c==27) {
             inputVideo.release();
             outputVideo.release();
-
             cout << "Program has been forcefully quit using the esc-key" << endl;
             return 0;
         }
 
+        i+=outputFps;
         delete frameObj;
     }
-
     inputVideo.release();
     outputVideo.release();
 
