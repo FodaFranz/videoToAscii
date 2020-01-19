@@ -12,18 +12,15 @@ using namespace cv;
 class Frame
 {
 public:
-    Frame(Mat source, int downScaleFactor = 1, int dotSize = 1);
+    Frame(Mat source, int dotSize = 1);
     ~Frame();
 
-    void downscale(int factor);
     Mat getAsciiImage();
 
 private:
     Mat source;
     Mat grayscale;
-    Mat asciiImage;
     const string charMap = " .,:;ox%#@";
-
     int dotSize;
 
     vector<string> getAscii();

@@ -2,19 +2,35 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "frame.h"
 
 using namespace std;
 using namespace cv;
 
+vector<Mat> scaleVideo(VideoCapture video, int factor, int fpsMultiplier) {
+     int length = video.get(CAP_PROP_FRAME_COUNT);
+     vector<Mat> outVideo;
+     cout << "Downscaling video ..." << endl;
+     for(int i = 0;i < length;i+=fpsMultiplier) {
+         Mat frame, outFrame;
+         video.set(CAP_PROP_POS_FRAMES, i);
+         video >> frame;
+         resize(frame, outFrame, Size(frame.cols/factor, frame.rows/factor), factor, factor, INTER_LINEAR);
+         outVideo.push_back(outFrame);
+     }
+
+     return outVideo;
+}
+
 int main(int argc, char *argv[])
 {
     string input;
     string output;
-    int downscaleFactor;
+    int scalingFactor;
     int dotSize;
-    int outputFps;
+    int outputFpsMultiplier;
 
     if(argc == 1) {
         cout << "Parameters: \n" << "input output [downscale_factor] [dotsize] [outputFps]" << endl;
@@ -30,15 +46,15 @@ int main(int argc, char *argv[])
         }
 
         try {
-            downscaleFactor = atoi(argv[3]);
+            scalingFactor = atoi(argv[3]);
             dotSize = atoi(argv[4]);
-            outputFps = atoi(argv[5]);
+            outputFpsMultiplier = atoi(argv[5]);
 
         }
         catch(const exception&) {
-            downscaleFactor = 1;
+            scalingFactor = 1;
             dotSize = 10;
-            outputFps = 1;
+            outputFpsMultiplier = 1;
         }
     }
 
@@ -49,41 +65,23 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    int width = inputVideo.get(CAP_PROP_FRAME_WIDTH);
-    int height = inputVideo.get(CAP_PROP_FRAME_HEIGHT);
     int fps = inputVideo.get(CAP_PROP_FPS);
-    int length = inputVideo.get(CAP_PROP_FRAME_COUNT)/outputFps;
-    VideoWriter outputVideo(output, VideoWriter::fourcc('M','J','P','G'), fps/outputFps, Size(width/downscaleFactor/dotSize * 10, height/downscaleFactor/dotSize * 10));
 
-    int i = 1;
-    while(1) {
-        Mat frame;
-        inputVideo.set(CAP_PROP_POS_FRAMES, i-1);
-        inputVideo >> frame;
+    vector<Mat> sourceVideo = scaleVideo(inputVideo, scalingFactor, outputFpsMultiplier);
+    Mat exampleFrame = sourceVideo[100];
+    VideoWriter outputVideo(output,
+                            VideoWriter::fourcc('M','J','P','G'),
+                            fps/outputFpsMultiplier,
+                            Size(exampleFrame.cols/dotSize * 10, exampleFrame.rows/dotSize * 10));
 
-        if(frame.empty())
-            break;
-
-        Frame *frameObj = new Frame(frame, downscaleFactor, dotSize);
-        outputVideo.write(frameObj->getAsciiImage());
-        imshow("Ascii", frameObj->getAsciiImage());
-        imshow("Originial", frame);
-
-        //cout << i << "/" << length << endl;
-
-        char c = static_cast<char>(waitKey(1));
-        if(c==27) {
-            inputVideo.release();
-            outputVideo.release();
-            cout << "Program has been forcefully quit using the esc-key" << endl;
-            return 0;
-        }
-
-        i+=outputFps;
-        delete frameObj;
+    cout << "Converting to ascii..." << endl;
+    for(Mat const& image : sourceVideo) {
+        Frame* frame = new Frame(image, dotSize);
+        outputVideo.write(frame->getAsciiImage());
     }
-    inputVideo.release();
+
     outputVideo.release();
+    inputVideo.release();
 
     cout << input << " has been transformed into an ascii-video. Output: " << output << endl;
 }
